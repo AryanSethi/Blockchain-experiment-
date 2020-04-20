@@ -11,12 +11,13 @@ class Blockchain(object):
     def __init__(self):
         self.chain=[]
         self.current_transactions=[]
-        self.new_block(previous_hash=1,proof=100)
-        self.nodes=set()
+        self.new_block(previous_hash=1,proof=100) #genesis block
+        self.nodes=set() #makes sure we have distinct nodes and no matter how many times it is added, it appears as only one
 
     def register_node(self,address):
         parse_url=urlparse(address)
         self.nodes.add(parse_url.netloc)
+        print('the netlock is ', parse_url.netloc)
 
     def valid_chain(self,chain):
         last_block=chain[0]
@@ -153,6 +154,41 @@ def full_chain():
         'chian': blockchain.chain,
         'length': len(blockchain.chain)
     }
+    return jsonify(response), 200
+
+@app.route('/nodes/register', methods=['POST'])
+def register_nodes():
+    values = request.get_json()
+
+    nodes = values.get('nodes')
+    if nodes is None:
+        return "Error: Please supply a valid list of nodes", 400
+
+    for node in nodes:
+        blockchain.register_node(node)
+
+    response = {
+        'message': 'New nodes have been added',
+        'total_nodes': list(blockchain.nodes),
+    }
+    return jsonify(response), 201
+
+
+@app.route('/nodes/resolve', methods=['GET'])
+def consensus():
+    replaced = blockchain.resolve_conflicts()
+
+    if replaced:
+        response = {
+            'message': 'Our chain was replaced',
+            'new_chain': blockchain.chain
+        }
+    else:
+        response = {
+            'message': 'Our chain is authoritative',
+            'chain': blockchain.chain
+        }
+
     return jsonify(response), 200
 
 if __name__ =='__main__':
